@@ -1,5 +1,5 @@
 package application;
-	
+
 import java.io.IOException;
 
 import org.opencv.core.Core;
@@ -17,17 +17,16 @@ public class Main extends Application {
 	public void start(Stage primaryStage) {
 		try {
 			FXMLLoader loader = new FXMLLoader(getClass().getResource("MainWindow.fxml"));
-			BorderPane root = (BorderPane)loader.load();
+			BorderPane root = (BorderPane) loader.load();
 			Scene scene = new Scene(root);
-			
+
 			primaryStage.setTitle("FX Example");
 			primaryStage.setScene(scene);
 			primaryStage.show();
-			
+
 			MainController controller = loader.getController();
 			primaryStage.setOnCloseRequest((new EventHandler<WindowEvent>() {
-				public void handle(WindowEvent we)
-				{
+				public void handle(WindowEvent we) {
 					controller.setClosed();
 				}
 			}));
@@ -35,10 +34,10 @@ public class Main extends Application {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public static void main(String[] args) {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-		
+
 		launch(args);
 	}
 }

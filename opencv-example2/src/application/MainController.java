@@ -48,7 +48,6 @@ public class MainController {
 				this.cameraActive = true;
 				System.out.println("Camera is running");
 				Runnable frameGrabber = new Runnable() {
-
 					@Override
 					public void run() {
 						Mat frame = grabFrame();
@@ -60,7 +59,13 @@ public class MainController {
 				};
 
 				this.timer = Executors.newSingleThreadScheduledExecutor();
-				this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
+
+				float fps = 30;
+				float frameGrabSchedule = (1f / fps) * 1000f;
+
+				System.out.println("Current frame grab rate: " + (long) fps + "fps");
+				System.out.println("Calculated frame grab schedule: " + (long) frameGrabSchedule + "ms");
+				this.timer.scheduleAtFixedRate(frameGrabber, 0, (long) frameGrabSchedule, TimeUnit.MILLISECONDS);
 
 				// update the button content
 				this.startButton.setText("Stop Camera");
@@ -107,7 +112,7 @@ public class MainController {
 			// release the camera
 			this.capture.release();
 		}
-		
+
 		this.cameraActive = false;
 	}
 
