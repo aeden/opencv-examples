@@ -36,6 +36,8 @@ public class Main extends Application {
 	}
 
 	public static void main(String[] args) {
+		System.out.println("Starting example 1");
+		
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
 		launch(args);
