@@ -1,4 +1,4 @@
-package application;
+package com.anthonyeden.opencv;
 
 import java.io.IOException;
 
@@ -12,7 +12,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
-public class Main extends Application {
+public class SimpleCam extends Application {
 	@Override
 	public void start(Stage primaryStage) {
 		try {
@@ -36,7 +36,7 @@ public class Main extends Application {
 	}
 
 	public static void main(String[] args) {
-		System.out.println("Starting example 1");
+		System.out.println("Starting opencv example");
 		
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 

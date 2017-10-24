@@ -1,4 +1,4 @@
-package application;
+package com.anthonyeden.opencv;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;

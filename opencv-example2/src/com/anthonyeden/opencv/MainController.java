@@ -1,4 +1,4 @@
-package application;
+package com.anthonyeden.opencv;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
