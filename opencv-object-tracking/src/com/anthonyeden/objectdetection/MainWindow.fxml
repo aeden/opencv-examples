@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="556.0" prefWidth="770.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.anthonyeden.objectdetection.MainController">
+   <center>
+      <HBox prefHeight="100.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+         <children>
+            <ImageView fx:id="originalFrame" fitHeight="241.0" fitWidth="317.0" pickOnBounds="true" preserveRatio="true">
+               <HBox.margin>
+                  <Insets left="10.0" top="10.0" />
+               </HBox.margin>
+            </ImageView>
+            <VBox prefHeight="405.0" prefWidth="274.0">
+               <children>
+                  <ImageView fx:id="maskImage" fitHeight="150.0" fitWidth="255.0" pickOnBounds="true" preserveRatio="true">
+                     <VBox.margin>
+                        <Insets left="10.0" top="10.0" />
+                     </VBox.margin>
+                  </ImageView>
+                  <ImageView fx:id="morphImage" fitHeight="150.0" fitWidth="255.0" pickOnBounds="true" preserveRatio="true">
+                     <VBox.margin>
+                        <Insets left="10.0" top="10.0" />
+                     </VBox.margin>
+                  </ImageView>
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+   </center>
+   <right>
+      <VBox prefHeight="400.0" prefWidth="150.0" BorderPane.alignment="CENTER">
+         <children>
+            <Label text="Hue Start">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Label>
+            <Slider fx:id="hueStartSlider" max="180.0">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Slider>
+            <Label text="Hue Stop">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Label>
+            <Slider fx:id="hueStopSlider" max="180.0" value="180.0">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Slider>
+            <Label layoutX="10.0" layoutY="43.0" text="Saturation Start">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Label>
+            <Slider fx:id="saturationStartSlider" layoutX="10.0" layoutY="60.0" max="255.0">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Slider>
+            <Label text="Saturation Stop">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Label>
+            <Slider fx:id="saturationStopSlider" max="255.0" value="255.0">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Slider>
+            <Label layoutX="10.0" layoutY="179.0" text="Value Start">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Label>
+            <Slider fx:id="valueStartSlider" layoutX="10.0" layoutY="206.0" max="255.0">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Slider>
+            <Label layoutX="10.0" layoutY="222.0" text="Value Stop">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Label>
+            <Slider fx:id="valueStopSlider" layoutX="10.0" layoutY="239.0" max="255.0" value="255.0">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Slider>
+         </children>
+      </VBox>
+   </right>
+   <bottom>
+      <VBox prefHeight="151.0" prefWidth="770.0" BorderPane.alignment="CENTER">
+         <children>
+            <Pane prefHeight="200.0" prefWidth="200.0">
+               <children>
+                  <Button fx:id="cameraButton" layoutX="360.0" layoutY="24.0" mnemonicParsing="false" onAction="#toggleCamera" text="Start Camera" />
+               </children>
+            </Pane>
+            <Separator prefWidth="200.0" />
+            <Pane prefHeight="200.0" prefWidth="200.0">
+               <children>
+                  <Label fx:id="hsvValuesLabel" layoutX="26.0" layoutY="29.0" prefHeight="17.0" prefWidth="714.0" text="HSV Values" />
+               </children>
+            </Pane>
+         </children>
+      </VBox>
+   </bottom>
+</BorderPane>
