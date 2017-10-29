@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -72,13 +73,20 @@ public class MainController {
     private ScheduledExecutorService timer;
     private VideoCapture capture;
     private boolean cameraActive;
-    private Rect lastBoundingRect;
+
+    private Size blurSize = new Size(7, 7);
+
     private Scalar boundingRectColor;
-    private Rect centerTarget;
+    private int boundingRectThickness = 4;
+    private int minimumBoundingWidth = 20;
+    private int minimumBoundingHeight = 20;
 
     private ObjectProperty<String> hsvValuesProp;
     private Scalar centerTargetColor = RED;
     private int centerTargetThickness = 10;
+
+    private Scalar directionIndicatorColor = RED;
+    private int directionIndicatorThickness = 10;
 
     public MainController() {
 	this.capture = new VideoCapture();
@@ -109,6 +117,7 @@ public class MainController {
 		    public void run() {
 			Mat frame = grabFrame();
 			Image imageToShow = Utils.mat2Image(frame);
+			// render the image
 			Platform.runLater(() -> {
 			    originalFrame.imageProperty().set(imageToShow);
 			});
@@ -153,7 +162,7 @@ public class MainController {
 		    Mat morphOutput = new Mat();
 
 		    // remove some noise
-		    Imgproc.blur(frame, blurredImage, new Size(7, 7));
+		    Imgproc.blur(frame, blurredImage, blurSize);
 
 		    // convert the frame to HSV
 		    Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
@@ -177,12 +186,14 @@ public class MainController {
 			}
 		    });
 
-		    // threshold HSV image to select tennis balls
+		    // fill in the mask that is used to find the objects
 		    Core.inRange(hsvImage, minValues, maxValues, mask);
-		    // show the partial output
+
+		    // show the mask output
+		    Image maskImage = Utils.mat2Image(mask);
 		    Platform.runLater(() -> {
 			try {
-			    this.maskImage.imageProperty().set(Utils.mat2Image(mask));
+			    this.maskImage.imageProperty().set(maskImage);
 			} catch (Exception e) {
 			    System.err.println("Exception updating mask image: " + e);
 			}
@@ -199,19 +210,22 @@ public class MainController {
 		    Imgproc.dilate(morphOutput, morphOutput, dilateElement);
 		    Imgproc.dilate(morphOutput, morphOutput, dilateElement);
 
+		    // render the morph output
+		    Image morphImage = Utils.mat2Image(morphOutput);
 		    Platform.runLater(() -> {
 			try {
-			    this.morphImage.imageProperty().set(Utils.mat2Image(morphOutput));
+			    this.morphImage.imageProperty().set(morphImage);
 			} catch (Exception e) {
 			    System.err.println("Exception updating morph image: " + e);
 			}
 		    });
 
+		    // find the object in the morph output and display the appropriate
+		    // bounding and target details in the primary camera image
 		    frame = findAndDrawObject(morphOutput, frame);
 		}
 
 	    } catch (Exception e) {
-		// log the error
 		System.err.println("Exception during the image elaboration: " + e);
 	    }
 	}
@@ -226,7 +240,7 @@ public class MainController {
 	// Find contours
 	Imgproc.findContours(morphOutput, contours, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_SIMPLE);
 
-	// Draw boundries if any are present
+	// Draw boundaries if any are present
 	if (hierarchy.size().height > 0 && hierarchy.size().width > 0) {
 	    for (int idx = 0; idx >= 0; idx = (int) hierarchy.get(0, idx)[0]) {
 		frame = drawObjectBoundry(frame, contours, idx);
@@ -241,54 +255,46 @@ public class MainController {
 	for (int i = 0; i < contours.size(); i++) {
 	    Rect boundingRect = Imgproc.boundingRect(contours.get(i));
 
-	    if (lastBoundingRect != null) {
-		if (boundingRect.x - lastBoundingRect.x > 20) {
-		    // System.out.println("Object moving right");
-		} else if (boundingRect.x - lastBoundingRect.x < -20) {
-		    // System.out.println("Object moving left");
-		} else {
-		    // System.out.println("Object is stationary");
-		}
-	    }
-
 	    // draw the object bounding rectangle
-	    if (boundingRect.width > 20 && boundingRect.height > 20) {
-		int boundingRectThickness = 10;
+	    if (boundingRect.width > minimumBoundingWidth && boundingRect.height > minimumBoundingHeight) {
 		Imgproc.rectangle(frame, boundingRect.tl(), boundingRect.br(), boundingRectColor,
 			boundingRectThickness);
-
-		this.lastBoundingRect = boundingRect;
-	    } else {
-		this.lastBoundingRect = null;
 	    }
 
-	    // prepare target
-	    int width = 200;
-	    int height = 100;
-	    int x = (frame.width() / 2) - (width / 2);
-	    int y = (frame.height() / 2) - (height / 2);
-	    this.centerTarget = new Rect(x, y, width, height);
+	    Rect centerTarget = getCenterTargetRect(frame);
 
 	    Rectangle r1 = new Rectangle(boundingRect.x, boundingRect.y, boundingRect.width, boundingRect.height);
 	    Rectangle r2 = new Rectangle(centerTarget.x, centerTarget.y, centerTarget.width, centerTarget.height);
 
-	    // if the bounding rect and target intersect, draw the target
+	    // if the bounding rectangle and target intersect, draw the target
 	    if (r1.intersects(r2)) {
 		Imgproc.rectangle(frame, centerTarget.tl(), centerTarget.br(), centerTargetColor,
 			centerTargetThickness);
-		System.out.println("stop");
+		// System.out.println("stop");
 	    } else {
 		// what direction do we move?
 		if (boundingRect.x > centerTarget.x + centerTarget.width) {
-		    System.out.println("turn right");
+		    Imgproc.rectangle(frame, new Point(frame.width() - 20, 0), new Point(frame.width(), frame.height()),
+			    directionIndicatorColor, directionIndicatorThickness);
+		    // System.out.println("turn right");
 		} else if (boundingRect.x < centerTarget.x) {
-		    System.out.println("turn left");
+		    Imgproc.rectangle(frame, new Point(0, 0), new Point(20, frame.height()), directionIndicatorColor,
+			    directionIndicatorThickness);
+		    // System.out.println("turn left");
 		}
 	    }
 
 	}
 	return frame;
     };
+
+    private Rect getCenterTargetRect(Mat frame) {
+	int width = 200;
+	int height = 100;
+	int x = (frame.width() / 2) - (width / 2);
+	int y = (frame.height() / 2) - (height / 2);
+	return new Rect(x, y, width, height);
+    }
 
     private void stopAcquisition() {
 	if (this.timer != null && !this.timer.isShutdown()) {
