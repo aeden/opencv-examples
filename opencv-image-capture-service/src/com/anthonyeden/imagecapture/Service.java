@@ -17,6 +17,7 @@ public class Service {
 
     public static String IMAGE_OUTPUT_TYPE = "png";
     public static String FILE_PREFIX = "frame-";
+    public static double FPS = 0.2;
 
     public static void main(String[] args) throws InterruptedException {
 	// Load the opencv native library
@@ -66,8 +67,7 @@ public class Service {
 		}
 	    };
 
-	    double fps = 0.1;
-	    long frameGrabSchedule = (long) ((1f / fps) * 1000f);
+	    long frameGrabSchedule = (long) ((1f / FPS) * 1000f);
 	    ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
 	    timer.scheduleAtFixedRate(frameGrabber, 0, frameGrabSchedule, TimeUnit.MILLISECONDS);
 	    while (!timer.isShutdown()) {
