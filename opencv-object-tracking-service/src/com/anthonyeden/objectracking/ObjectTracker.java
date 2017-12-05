@@ -16,7 +16,7 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
-public class ObjectTracker implements Runnable {
+public class ObjectTracker {
 
     public static final int UPDATE_DELAY = 2000;
 
@@ -28,10 +28,11 @@ public class ObjectTracker implements Runnable {
     private Scalar hsvMinValues;
     private Scalar hsvMaxValues;
 
-    private VideoCapture camera;
+    private VideoCapture camera = new VideoCapture();
     private ScheduledExecutorService timer;
 
-    private boolean running = false;
+    private Mat dilateElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(24, 24));
+    private Mat erodeElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(12, 12));
 
     /**
      * Construct a new ObjectTracker. It will use the camera with the ID 0 and an
@@ -40,8 +41,8 @@ public class ObjectTracker implements Runnable {
     public ObjectTracker() {
 	this.cameraId = 0;
 	this.fps = 10;
-	this.hsvMinValues = new Scalar(33, 9, 146);
-	this.hsvMaxValues = new Scalar(88, 255, 255);
+	this.hsvMinValues = new Scalar(33, 108, 138);
+	this.hsvMaxValues = new Scalar(55, 255, 255);
     }
 
     /**
@@ -85,61 +86,9 @@ public class ObjectTracker implements Runnable {
     }
 
     /**
-     * Stop the object tracker. This method will return immediately but the object
-     * tracking thread may take up to UPDATE_DELAY seconds to stop.
-     */
-    public void stop() {
-	this.running = false;
-    }
-
-    /**
-     * Run the object tracker. This is a blocking method and should be used inside a
-     * Thread.
-     * 
-     * For example:
-     * 
-     * Thread t = new Thread(new ObjectTracker()); t.start();
-     * 
-     * @throws InterruptedException
-     */
-    public void run() {
-	initialize();
-	this.running = true;
-	while (this.running) {
-	    if (isObjectPresent()) {
-		System.out.println(getDirection());
-	    } else {
-		System.out.println("Object not present");
-	    }
-
-	    try {
-		Thread.sleep(UPDATE_DELAY);
-	    } catch (InterruptedException e) {
-		System.out.println("Thread interrupted, continuing");
-	    }
-	}
-    }
-
-    /**
-     * Run the object tracker demonstration. This is an entry point for testing the
-     * tracker, it is not intended to be used when the tracker is used within the
-     * robot.
-     * 
-     * @param args
-     * @throws InterruptedException
-     */
-    public static void main(String[] args) throws InterruptedException {
-	System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-	ObjectTracker tracker = new ObjectTracker();
-	Thread trackerThread = new Thread(tracker);
-	trackerThread.start();
-    }
-
-    /**
      * Set up the camera and start grabbing frames.
      */
-    protected void initialize() {
-	this.camera = new VideoCapture();
+    public void startCapture() {
 	System.out.println("Starting camera with ID " + cameraId);
 	this.camera.open(cameraId);
 	if (this.camera.isOpened()) {
@@ -153,6 +102,43 @@ public class ObjectTracker implements Runnable {
 	    System.out.println("Starting frame grabber");
 	    this.timer = Executors.newSingleThreadScheduledExecutor();
 	    this.timer.scheduleAtFixedRate(frameGrabber, 0, getFrameGrabSchedule(), TimeUnit.MILLISECONDS);
+	}
+    }
+
+    /**
+     * Stop the frame grabber.
+     */
+    public void stopCapture() {
+	this.timer.shutdown();
+	System.out.println("Frame grabber stopped");
+	this.camera.release();
+	System.out.println("Camera is released");
+    }
+
+    /**
+     * Run the object tracker demonstration. This is an entry point for testing the
+     * tracker, it is not intended to be used when the tracker is used within the
+     * robot.
+     * 
+     * @param args
+     *            List of command line arguments
+     */
+    public static void main(String[] args) {
+	System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+	ObjectTracker tracker = new ObjectTracker();
+	tracker.startCapture();
+	while (true) {
+	    if (tracker.isObjectPresent()) {
+		System.out.println(tracker.getDirection());
+	    } else {
+		System.out.println("Object not present");
+	    }
+
+	    try {
+		Thread.sleep(UPDATE_DELAY);
+	    } catch (InterruptedException e) {
+		System.out.println("Thread interrupted, continuing");
+	    }
 	}
     }
 
@@ -189,75 +175,83 @@ public class ObjectTracker implements Runnable {
 		    List<MatOfPoint> contours = new ArrayList<>();
 		    Mat hierarchy = new Mat();
 
-		    // remove some noise
-		    Size blurSize = new Size(7, 7);
-		    Imgproc.blur(frame, blurredImage, blurSize);
+		    try {
+			// remove some noise
+			Size blurSize = new Size(7, 7);
+			Imgproc.blur(frame, blurredImage, blurSize);
 
-		    // convert the frame to HSV
-		    Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
+			// convert the frame to HSV
+			Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
 
-		    // fill in the mask that is used to find the objects
-		    Core.inRange(hsvImage, hsvMinValues, hsvMaxValues, mask);
+			// fill in the mask that is used to find the objects
+			Core.inRange(hsvImage, hsvMinValues, hsvMaxValues, mask);
 
-		    // morphological operators
-		    // dilate with large element, erode with small element
-		    Mat dilateElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(24, 24));
-		    Mat erodeElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(12, 12));
+			// morphological operators
+			// dilate with large element, erode with small element
+			Imgproc.erode(mask, morphOutput, erodeElement);
+			Imgproc.erode(morphOutput, morphOutput, erodeElement);
 
-		    Imgproc.erode(mask, morphOutput, erodeElement);
-		    Imgproc.erode(morphOutput, morphOutput, erodeElement);
+			Imgproc.dilate(morphOutput, morphOutput, dilateElement);
+			Imgproc.dilate(morphOutput, morphOutput, dilateElement);
 
-		    Imgproc.dilate(morphOutput, morphOutput, dilateElement);
-		    Imgproc.dilate(morphOutput, morphOutput, dilateElement);
+			// Find contours
+			Imgproc.findContours(morphOutput, contours, hierarchy, Imgproc.RETR_CCOMP,
+				Imgproc.CHAIN_APPROX_SIMPLE);
 
-		    // Find contours
-		    Imgproc.findContours(morphOutput, contours, hierarchy, Imgproc.RETR_CCOMP,
-			    Imgproc.CHAIN_APPROX_SIMPLE);
+			if (contours.size() == 0) {
+			    // The object does not appear to be present anywhere in the camera's view
+			    this.objectPresent = false;
+			} else {
+			    // The object is present in the camera's view, but not centered
+			    this.objectPresent = true;
 
-		    if (contours.size() == 0) {
-			// The object does not appear to be present anywhere in the camera's view
-			this.objectPresent = false;
-		    } else {
-			// The object is present in the camera's view, but not centered
-			this.objectPresent = true;
+			    for (int i = 0; i < contours.size(); i++) {
+				// Calculate the bounding rectangle of the contour
+				MatOfPoint contour = contours.get(i);
+				Rect boundingRect = Imgproc.boundingRect(contour);
 
-			for (int i = 0; i < contours.size(); i++) {
-			    // Calculate the bounding rectangle of the contour
-			    Rect boundingRect = Imgproc.boundingRect(contours.get(i));
+				// Calculate the center target bounding rectangle
+				Rect centerTarget = getCenterTargetRect(frame);
 
-			    // Calculate the center target bounding rectangle
-			    Rect centerTarget = getCenterTargetRect(frame);
+				// Convert from the opencv Rect to a java.awt.Rectangle to make it possible to
+				// use intersects().
+				Rectangle r1 = new Rectangle(boundingRect.x, boundingRect.y, boundingRect.width,
+					boundingRect.height);
+				Rectangle r2 = new Rectangle(centerTarget.x, centerTarget.y, centerTarget.width,
+					centerTarget.height);
 
-			    // Convert from the opencv Rect to a java.awt.Rectangle to make it possible to
-			    // use intersects().
-			    Rectangle r1 = new Rectangle(boundingRect.x, boundingRect.y, boundingRect.width,
-				    boundingRect.height);
-			    Rectangle r2 = new Rectangle(centerTarget.x, centerTarget.y, centerTarget.width,
-				    centerTarget.height);
-
-			    // If the bounding rectangle and target intersect, then the direction is 0, the
-			    // target is centered
-			    if (r1.intersects(r2)) {
-				this.direction = 0;
-			    } else {
-				if (boundingRect.x > centerTarget.x + centerTarget.width) {
-				    // If the bounding rectangle's X value is greater than the center target X +
-				    // width, then the object is to the right
-				    this.direction = 1;
+				// If the bounding rectangle and target intersect, then the direction is 0, the
+				// target is centered
+				if (r1.intersects(r2)) {
+				    this.direction = 0;
 				} else {
-				    // Otherwise the object is to the left
-				    this.direction = -1;
+				    if (boundingRect.x > centerTarget.x + centerTarget.width) {
+					// If the bounding rectangle's X value is greater than the center target X +
+					// width, then the object is to the right
+					this.direction = 1;
+				    } else {
+					// Otherwise the object is to the left
+					this.direction = -1;
+				    }
 				}
+
+				contour.release();
 			    }
 			}
+		    } finally {
+			blurredImage.release();
+			hsvImage.release();
+			mask.release();
+			morphOutput.release();
+			hierarchy.release();
 		    }
-
 		}
 	    } catch (Exception e) {
 		System.err.println("Exception during the image elaboration: " + e);
 	    }
 	}
 
+	frame.release();
     }
 
     private Rect getCenterTargetRect(Mat frame) {
