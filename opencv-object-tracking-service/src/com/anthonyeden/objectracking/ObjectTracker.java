@@ -1,6 +1,5 @@
 package com.anthonyeden.objectracking;
 
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -18,7 +17,8 @@ import org.opencv.videoio.VideoCapture;
 
 public class ObjectTracker {
 
-    public static final int UPDATE_DELAY = 2000;
+    public static final int UPDATE_DELAY = 100;
+    public static final int OBJECT_NOT_PRESENT = -255;
 
     private int direction = 0;
     private boolean objectPresent = false;
@@ -41,8 +41,8 @@ public class ObjectTracker {
     public ObjectTracker() {
 	this.cameraId = 0;
 	this.fps = 10;
-	this.hsvMinValues = new Scalar(33, 108, 138);
-	this.hsvMaxValues = new Scalar(55, 255, 255);
+	this.hsvMinValues = new Scalar(36, 55, 106);
+	this.hsvMaxValues = new Scalar(77, 255, 255);
     }
 
     /**
@@ -127,11 +127,19 @@ public class ObjectTracker {
 	System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 	ObjectTracker tracker = new ObjectTracker();
 	tracker.startCapture();
+	int lastState = 0;
 	while (true) {
 	    if (tracker.isObjectPresent()) {
-		System.out.println(tracker.getDirection());
+		int direction = tracker.getDirection();
+		if (direction != lastState) {
+		    System.out.println(tracker.getDirection());
+		}
+		lastState = direction;
 	    } else {
-		System.out.println("Object not present");
+		if (OBJECT_NOT_PRESENT != lastState) {
+		    System.out.println("Object not present");
+		}
+		lastState = OBJECT_NOT_PRESENT;
 	    }
 
 	    try {
@@ -206,23 +214,14 @@ public class ObjectTracker {
 			    this.objectPresent = true;
 
 			    for (int i = 0; i < contours.size(); i++) {
-				// Calculate the bounding rectangle of the contour
 				MatOfPoint contour = contours.get(i);
+
 				Rect boundingRect = Imgproc.boundingRect(contour);
-
-				// Calculate the center target bounding rectangle
 				Rect centerTarget = getCenterTargetRect(frame);
-
-				// Convert from the opencv Rect to a java.awt.Rectangle to make it possible to
-				// use intersects().
-				Rectangle r1 = new Rectangle(boundingRect.x, boundingRect.y, boundingRect.width,
-					boundingRect.height);
-				Rectangle r2 = new Rectangle(centerTarget.x, centerTarget.y, centerTarget.width,
-					centerTarget.height);
 
 				// If the bounding rectangle and target intersect, then the direction is 0, the
 				// target is centered
-				if (r1.intersects(r2)) {
+				if (intersects(boundingRect, centerTarget)) {
 				    this.direction = 0;
 				} else {
 				    if (boundingRect.x > centerTarget.x + centerTarget.width) {
@@ -260,6 +259,14 @@ public class ObjectTracker {
 	int x = (frame.width() / 2) - (width / 2);
 	int y = (frame.height() / 2) - (height / 2);
 	return new Rect(x, y, width, height);
+    }
+
+    private boolean intersects(Rect a, Rect b) {
+	int left = Math.max(a.x, b.x);
+	int top = Math.max(a.y, b.y);
+	int right = Math.min(a.x + a.width, b.x + b.width);
+	int bottom = Math.min(a.y + a.height, b.y + b.height);
+	return left <= right && top <= bottom;
     }
 
 }
